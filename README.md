@@ -96,7 +96,7 @@ Run the migrations and seed the database:
 ```console
 flask db revision --autogenerate -m 'message'
 flask db upgrade head
-python server/seed.py
+python server/seed.py 
 ```
 
 > If you aren't able to get the provided seed file working, you are welcome to
