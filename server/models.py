@@ -4,7 +4,6 @@ from sqlalchemy.orm import validates
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy_serializer import SerializerMixin
 
-
 metadata = MetaData(
     naming_convention={
         "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
@@ -21,13 +20,15 @@ class Restaurant(db.Model, SerializerMixin):
     name = db.Column(db.String)
     address = db.Column(db.String)
 
-    # relationship with RestaurantPizza
     restaurant_pizzas = db.relationship('RestaurantPizza', back_populates='restaurant')
 
-    # relationship with Pizza through RestaurantPizza
-    pizzas = db.relationship('Pizza', secondary='restaurant_pizzas', back_populates='restaurants')
+    pizzas = db.relationship(
+        'Pizza',
+        secondary='restaurant_pizzas',
+        back_populates='restaurants',
+        overlaps="restaurant_pizzas,pizzas"
+    )
 
-    # serialization rules
     serialize_rules = ('-restaurant_pizzas.restaurant',)
 
     def __repr__(self):
@@ -41,13 +42,15 @@ class Pizza(db.Model, SerializerMixin):
     name = db.Column(db.String)
     ingredients = db.Column(db.String)
 
-    # relationship with RestaurantPizza
     restaurant_pizzas = db.relationship('RestaurantPizza', back_populates='pizza')
 
-    # relationship with Restaurant through RestaurantPizza
-    restaurants = db.relationship('Restaurant', secondary='restaurant_pizzas', back_populates='pizzas')
+    restaurants = db.relationship(
+        'Restaurant',
+        secondary='restaurant_pizzas',
+        back_populates='pizzas',
+        overlaps="restaurant_pizzas,restaurants"
+    )
 
-    # serialization rules
     serialize_rules = ('-restaurant_pizzas.pizza',)
 
     def __repr__(self):
@@ -60,16 +63,14 @@ class RestaurantPizza(db.Model, SerializerMixin):
     id = db.Column(db.Integer, primary_key=True)
     price = db.Column(db.Integer, nullable=False)
 
-    # relationships
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'))
     pizza_id = db.Column(db.Integer, db.ForeignKey('pizzas.id'))
-    restaurant = db.relationship('Restaurant', back_populates='restaurant_pizzas')
-    pizza = db.relationship('Pizza', back_populates='restaurant_pizzas')
 
-    # serialization rules
+    restaurant = db.relationship('Restaurant', back_populates='restaurant_pizzas', overlaps="pizzas,restaurants")
+    pizza = db.relationship('Pizza', back_populates='restaurant_pizzas', overlaps="pizzas,restaurants")
+
     serialize_rules = ('-restaurant.restaurant_pizzas', '-pizza.restaurant_pizzas')
 
-    # validation
     @validates('price')
     def validate_price(self, key, price):
         if not (1 <= price <= 30):
@@ -78,4 +79,3 @@ class RestaurantPizza(db.Model, SerializerMixin):
 
     def __repr__(self):
         return f"<RestaurantPizza ${self.price}>"
-    

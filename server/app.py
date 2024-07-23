@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 from models import db, Restaurant, RestaurantPizza, Pizza
 from flask_migrate import Migrate
 from flask import Flask, request, jsonify, make_response
@@ -14,6 +13,7 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.json.compact = False
 
 migrate = Migrate(app, db)
+
 db.init_app(app)
 
 api = Api(app)
@@ -21,16 +21,15 @@ api = Api(app)
 def restaurant_to_dict(restaurant):
     return {
         'id': restaurant.id,
-        'address': restaurant.address,
         'name': restaurant.name,
-        
+        'address': restaurant.address
     }
 
 def restaurant_with_pizzas_to_dict(restaurant):
     return {
         'id': restaurant.id,
-        'address': restaurant.address,
         'name': restaurant.name,
+        'address': restaurant.address,
         'restaurant_pizzas': [restaurant_pizza_to_dict(rp) for rp in restaurant.restaurant_pizzas]
     }
 
@@ -57,13 +56,13 @@ class RestaurantListResource(Resource):
 
 class RestaurantResource(Resource):
     def get(self, id):
-        restaurant = Restaurant.query.get(id)
+        restaurant = db.session.get(Restaurant, id)
         if restaurant is None:
             return make_response(jsonify({"error": "Restaurant not found"}), 404)
         return make_response(jsonify(restaurant_with_pizzas_to_dict(restaurant)), 200)
 
     def delete(self, id):
-        restaurant = Restaurant.query.get(id)
+        restaurant = db.session.get(Restaurant, id)
         if restaurant is None:
             return make_response(jsonify({"error": "Restaurant not found"}), 404)
         db.session.delete(restaurant)
@@ -82,20 +81,17 @@ class RestaurantPizzaResource(Resource):
         pizza_id = data.get("pizza_id")
         price = data.get("price")
 
-        # Validate restaurant and pizza existence
-        restaurant = Restaurant.query.filter_by(id=restaurant_id).first()
+        restaurant = db.session.get(Restaurant, restaurant_id)
         if not restaurant:
             return make_response(jsonify({"error": "Restaurant not found"}), 404)
 
-        pizza = Pizza.query.filter_by(id=pizza_id).first()
+        pizza = db.session.get(Pizza, pizza_id)
         if not pizza:
             return make_response(jsonify({"error": "Pizza not found"}), 404)
 
-        # Validate priceranging
         if price is None or not 1 <= price <= 30:
             return make_response(jsonify({"errors": ["validation errors"]}), 400)
 
-        # Create restaurant entry
         restaurant_pizza = RestaurantPizza(restaurant_id=restaurant_id, pizza_id=pizza_id, price=price)
         db.session.add(restaurant_pizza)
 
@@ -114,7 +110,6 @@ class RestaurantPizzaResource(Resource):
             "restaurant_id": restaurant_id,
         }), 201)
 
-# Error handling
 @app.errorhandler(404)
 def not_found(error):
     return make_response(jsonify({"error": "Resource not found"}), 404)
